@@ -1,0 +1,20 @@
+{
+  "name": "unshuffle",
+  "version": "1.0.0",
+  "description": "In-place sort of linked lists",
+  "main": "dist/unshuffle.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc"
+  },
+  "keywords": [
+    "sort",
+    "linked",
+    "list"
+  ],
+  "author": "Logan R. Kearsley",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^3.7.2"
+  }
+}

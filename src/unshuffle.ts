@@ -89,27 +89,102 @@ function merge_piles(first: Pile, cmp: (a: LL, b: LL) => -1|0|1) {
 }
 
 function distribute(g: IterableIterator<LL>, cmp: (a: LL, b: LL) => -1|0|1) {
-  // Initialize the leftmost pile with the first item.
-  const pre = { right: cons_pile(null, g.next().value) } as Pile;
-  // For each additional item, iterate piles until we find out where it goes
+  // Initialize one pile with the first item.
+  const first = cons_pile(null, g.next().value);
+  let last = first;
+  let side = 1; // top
   outer: for (let item of g) {
-    let pile = pre;
-    do {
-      pile = pile.right as Pile;
-      if (cmp(item, pile.top) < 1) {
-        push_top(pile, item);
-        continue outer;
+    // For each item, figure out which pile it goes in.
+    // 1. Select the rightmost pile for comparison.
+    let pile = last;
+    let switched = false;
+    inner: for(;;) {
+      if (side === 1) {
+        switch (cmp(item, pile.top)) {
+          case 0: {
+            // 2. If the item is equal to the top of the pile,
+            //    append to the top of the pile.
+            push_top(pile, item);
+            continue outer; // get the next item
+          }
+          case -1: {
+            // 3. If the item is less than the top:
+            if (pile.left) {
+              // 3.1 If the pile is not leftmost, move left and go to 2
+              pile = pile.left;
+              continue inner;
+            }
+            // 3.2 Else, append to the top of the pile.
+            push_top(pile, item);
+            continue outer; // get the next item
+          }
+          case 1: {
+            // 4. If the item is contained in the current pile:
+            if (pile.right) {
+              // 4.1 If the pile is not rightmost,
+              //     append to the top of the right pile.
+              push_top(pile.right, item);
+              continue outer; // get the next item
+            }
+          }
+        }
+      } else {
+        switch (cmp(item, pile.bottom)) {
+          case 0: {
+            // 2. If the item is equal to the bottom of the pile,
+            //    append to the bottom of the pile.
+            push_bottom(pile, item);
+            continue outer; // get the next item
+          }
+          case 1: {
+            // 3. If the item is greater than the bottom:
+            if (pile.left) {
+              // 3.1 If the pile is not leftmost, move left and go to 2
+              pile = pile.left;
+              continue inner;
+            }
+            // 3.2 Else, append to the bottom of the pile.
+            push_bottom(pile, item);
+            continue outer; // get the next item
+          }
+          case -1: {
+            // 4. If the item is contained in the current pile:
+            if (pile.right) {
+              // 4.1 If the pile is not rightmost,
+              //     append to the bottom of the right pile
+              push_bottom(pile.right, item);
+              continue outer; // get the next item
+            }
+            // 4.2 The current pile is rightmost;
+            if (switched) {
+              // If both sides have been compared, the item matches no pile.
+              break inner;
+            }
+            // If only one side has been compared, switch sides and go to 2
+            side = 1;
+            switched = true;
+          }
+        }
       }
-      if (cmp(item, pile.bottom) > -1) {
-        push_bottom(pile, item);
-        continue outer;
-      }
-    } while(pile.right);
 
-    pile.right = cons_pile(pile, item);
+      // 4.2 The current pile is rightmost;
+      if (switched) {
+        // If both sides have been compared, the item matches no pile.
+        break inner;
+      }
+
+      // If only one side has been compared, switch sides and go to 2
+      side = 1-side;
+      switched = true;
+    }
+
+    // 5. Both top and bottom have been searched, and no pile was matched.
+    //    Create a new rightmost pile to hold the item.
+    last.right = cons_pile(last, item);
+    last = last.right;
   }
 
-  return pre.right as Pile;
+  return first;
 }
 
 export default function unshuffle(head: LL, cmp: (a: LL, b: LL) => -1|0|1) {
@@ -121,5 +196,4 @@ export default function unshuffle(head: LL, cmp: (a: LL, b: LL) => -1|0|1) {
 
   // Merge the lists from each pile.
   return merge_piles(pile, cmp);
-  
 }

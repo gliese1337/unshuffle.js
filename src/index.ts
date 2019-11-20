@@ -1,18 +1,20 @@
-interface Pile<LL> {
-  sides: [LL, LL];
-  left: Pile<LL>|null;
-  right: Pile<LL>|null;
+interface Pile<L> {
+  sides: [L, L];
+  left: Pile<L>|null;
+  right: Pile<L>|null;
 }
 
-function * iterlist<LL>(l: LL, ptr: keyof LL) {
+function * iterlist<L>(l: L, ptr: keyof L) {
   do {
     const n = l[ptr];
     yield l;
-    l = n as unknown as LL;
+    l = n as unknown as L;
   } while(l);
 }
 
-function insert<LL>(c: Pile<LL>, last: Pile<LL>, cmp: (a: LL, b: LL) => number) {
+type Compare<T> = (a: T, b: T) => number;
+
+function insert<L>(c: Pile<L>, last: Pile<L>, cmp: Compare<L>) {
   // Loop until we hit the end or find a pile
   // that this one should be inserted before.
   // The original algorithm specified using a
@@ -20,7 +22,7 @@ function insert<LL>(c: Pile<LL>, last: Pile<LL>, cmp: (a: LL, b: LL) => number) 
   // of arrayifying the list and shifting piles
   // around in an array actually makes a linear
   // search and constant-time insertion better.
-  let right: Pile<LL> | null = last;
+  let right: Pile<L> | null = last;
   do {
     last = right;
     right = last.right;
@@ -38,8 +40,8 @@ function insert<LL>(c: Pile<LL>, last: Pile<LL>, cmp: (a: LL, b: LL) => number) 
   c.right = right;
 }
 
-function merge_piles<LL>(first: Pile<LL>, cmp: (a: LL, b: LL) => number, ptr: keyof LL) {
-  const head = { [ptr]: null as any } as LL;
+function merge_piles<L>(first: Pile<L>, cmp: Compare<L>, ptr: keyof L) {
+  const head = { [ptr]: null as any } as L;
   let last = head;
   
   for (;;) {
@@ -51,7 +53,7 @@ function merge_piles<LL>(first: Pile<LL>, cmp: (a: LL, b: LL) => number, ptr: ke
 
     // If there are no more piles, exit, preserving the rest of this pile's chain.
     const second = first.right;
-    if (!second) return head[ptr] as unknown as LL;
+    if (!second) return head[ptr] as unknown as L;
 
     // make this the previous output element
     last = next;
@@ -79,18 +81,18 @@ function merge_piles<LL>(first: Pile<LL>, cmp: (a: LL, b: LL) => number, ptr: ke
 }
 
 const push = [
-  function push_top<LL>(sides: [LL, LL], l: LL, ptr: keyof LL) {
+  function push_top<L>(sides: [L, L], l: L, ptr: keyof L) {
     l[ptr] = sides[0] as any;
     sides[0] = l;
   },
-  function push_bottom<LL>(sides: [LL, LL], l: LL, ptr: keyof LL) {
+  function push_bottom<L>(sides: [L, L], l: L, ptr: keyof L) {
     sides[1][ptr] = l as any;
     sides[1] = l;
     l[ptr] = null as any;
   },
 ];
 
-function find_pile<LL>(pile: Pile<LL>, item: LL, s: 0|1, cmp: (a: LL, b: LL) => number, ptr: keyof LL): boolean {
+function find_pile<L>(pile: Pile<L>, item: L, s: 0|1, cmp: Compare<L>, ptr: keyof L): boolean {
   const beyond = s === 0 ? -1 : 1;
   const contained = -beyond;
   switch (Math.sign(cmp(item, pile.sides[s]))) {
@@ -125,17 +127,17 @@ function find_pile<LL>(pile: Pile<LL>, item: LL, s: 0|1, cmp: (a: LL, b: LL) => 
   return false;
 }
 
-function init_pile<LL>(l: LL, ptr: keyof LL) {
+function init_pile<L>(l: L, ptr: keyof L) {
   l[ptr] = null as any;
-  return { sides: [l, l], left: null, right: null } as Pile<LL>;
+  return { sides: [l, l], left: null, right: null } as Pile<L>;
 }
 
-function cons_pile<LL>(left: Pile<LL>, l: LL, ptr: keyof LL) {
+function cons_pile<L>(left: Pile<L>, l: L, ptr: keyof L) {
   l[ptr] = null as any;
   return left.right = { sides: [l, l], left, right: null };
 }
 
-function distribute<LL>(g: IterableIterator<LL>, cmp: (a: LL, b: LL) => number, ptr: keyof LL) {
+function distribute<L>(g: IterableIterator<L>, cmp: Compare<L>, ptr: keyof L) {
   // Initialize one pile with the first item.
   const first = init_pile(g.next().value, ptr);
   let right = first;
@@ -158,7 +160,35 @@ function distribute<LL>(g: IterableIterator<LL>, cmp: (a: LL, b: LL) => number, 
   return first;
 }
 
-export function unshuffle<LL>(head: LL, cmp: (a: LL, b: LL) => number, ptr: keyof LL = 'next' as any) {
+function default_cmp(a: { value: number }, b: { value: number }) {
+  return a.value - b.value;
+}
+
+export function unshuffle<C extends { value: number }, L extends C & { next: L | null }>(
+  head: L,
+  cmp?: null
+): L;
+export function unshuffle<C extends { value: number }, L extends C>(
+  head: L,
+  cmp: null,
+  ptr: keyof L,
+): L;
+export function unshuffle<C, L extends C & { next: L | null }>(
+  head: L,
+  cmp: Compare<C>,
+): L;
+export function unshuffle<C, L extends C>(
+  head: L,
+  cmp: Compare<C>,
+  ptr: keyof L,
+): L;
+export function unshuffle<C, L extends C>(
+  head: L,
+  cmp?: Compare<C>|null,
+  ptr: keyof L = 'next' as any,
+) {
+  if (typeof cmp !== 'function') cmp = default_cmp as unknown as Compare<C>;
+
   // Distribute the list into piles.
   const pile = distribute(iterlist(head, ptr), cmp, ptr);
 

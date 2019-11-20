@@ -12,14 +12,14 @@ function * iterlist<LL>(l: LL, ptr: keyof LL) {
   } while(l);
 }
 
-function cons_pile<LL>(left: Pile<LL>|null, l: LL, ptr: keyof LL) {
-  l[ptr] = null as any;
-  return { sides: [l, l], left, right: null } as Pile<LL>;
-}
-
-function insert<LL>(c: Pile<LL>, last: Pile<LL>, cmp: (a: LL, b: LL) => -1|0|1) {
+function insert<LL>(c: Pile<LL>, last: Pile<LL>, cmp: (a: LL, b: LL) => number) {
   // Loop until we hit the end or find a pile
   // that this one should be inserted before.
+  // The original algorithm specified using a
+  // binary search for this, but the overhead
+  // of arrayifying the list and shifting piles
+  // around in an array actually makes a linear
+  // search and constant-time insertion better.
   let right: Pile<LL> | null = last;
   do {
     last = right;
@@ -30,7 +30,7 @@ function insert<LL>(c: Pile<LL>, last: Pile<LL>, cmp: (a: LL, b: LL) => -1|0|1) 
       c.right = null;
       return;
     }
-  } while (cmp(c.sides[0], right.sides[0]) === 1);
+  } while (cmp(c.sides[0], right.sides[0]) > 0);
   // insert in the middle
   last.right = c;
   right.left = c;
@@ -38,7 +38,7 @@ function insert<LL>(c: Pile<LL>, last: Pile<LL>, cmp: (a: LL, b: LL) => -1|0|1) 
   c.right = right;
 }
 
-function merge_piles<LL>(first: Pile<LL>, cmp: (a: LL, b: LL) => -1|0|1, ptr: keyof LL) {
+function merge_piles<LL>(first: Pile<LL>, cmp: (a: LL, b: LL) => number, ptr: keyof LL) {
   const head = { [ptr]: null as any } as LL;
   let last = head;
   
@@ -66,7 +66,7 @@ function merge_piles<LL>(first: Pile<LL>, cmp: (a: LL, b: LL) => -1|0|1, ptr: ke
     first.sides[0] = next[ptr] as any;
 
     // 3. Compare the next item to the top item on the second pile
-    if (cmp(first.sides[0], second.sides[0]) === 1) {
+    if (cmp(first.sides[0], second.sides[0]) > 0) {
       // 4. If it is out of order, Pull the current first pile out of the
       // list and reinsert it at the correct location in the list of piles.
       const current = first;
@@ -90,10 +90,10 @@ const push = [
   },
 ];
 
-function find_pile<LL>(pile: Pile<LL>, item: LL, s: 0|1, cmp: (a: LL, b: LL) => -1|0|1, ptr: keyof LL): boolean {
+function find_pile<LL>(pile: Pile<LL>, item: LL, s: 0|1, cmp: (a: LL, b: LL) => number, ptr: keyof LL): boolean {
   const beyond = s === 0 ? -1 : 1;
   const contained = -beyond;
-  switch (cmp(item, pile.sides[s])) {
+  switch (Math.sign(cmp(item, pile.sides[s]))) {
     case 0: {
       // If the item is equal to the current side of the pile,
       // append to current side of the pile.
@@ -125,9 +125,19 @@ function find_pile<LL>(pile: Pile<LL>, item: LL, s: 0|1, cmp: (a: LL, b: LL) => 
   return false;
 }
 
-function distribute<LL>(g: IterableIterator<LL>, cmp: (a: LL, b: LL) => -1|0|1, ptr: keyof LL) {
+function init_pile<LL>(l: LL, ptr: keyof LL) {
+  l[ptr] = null as any;
+  return { sides: [l, l], left: null, right: null } as Pile<LL>;
+}
+
+function cons_pile<LL>(left: Pile<LL>, l: LL, ptr: keyof LL) {
+  l[ptr] = null as any;
+  return left.right = { sides: [l, l], left, right: null };
+}
+
+function distribute<LL>(g: IterableIterator<LL>, cmp: (a: LL, b: LL) => number, ptr: keyof LL) {
   // Initialize one pile with the first item.
-  const first = cons_pile(null, g.next().value, ptr);
+  const first = init_pile(g.next().value, ptr);
   let right = first;
   let side: 0 | 1 = 0; // top
   for (let item of g) {
@@ -142,14 +152,13 @@ function distribute<LL>(g: IterableIterator<LL>, cmp: (a: LL, b: LL) => -1|0|1, 
     
     // Both top and bottom have been searched, and no pile was matched.
     // Create a new rightmost pile to hold the item.
-    right.right = cons_pile(right, item, ptr);
-    right = right.right;
+    right = cons_pile(right, item, ptr);
   }
 
   return first;
 }
 
-export default function unshuffle<LL>(head: LL, cmp: (a: LL, b: LL) => -1|0|1, ptr: keyof LL = 'next' as any) {
+export function unshuffle<LL>(head: LL, cmp: (a: LL, b: LL) => number, ptr: keyof LL = 'next' as any) {
   // Distribute the list into piles.
   const pile = distribute(iterlist(head, ptr), cmp, ptr);
 

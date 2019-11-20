@@ -2,10 +2,15 @@
   "name": "unshuffle",
   "version": "1.0.0",
   "description": "In-place sort of linked lists",
-  "main": "dist/unshuffle.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist/**/*"
+  ],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "tsc"
+    "build": "tsc",
+    "test": "mocha --recursive",
+    "prepare": "npm run build"
   },
   "keywords": [
     "sort",
@@ -15,6 +20,20 @@
   "author": "Logan R. Kearsley",
   "license": "MIT",
   "devDependencies": {
+    "chai": "^4.2.0",
+    "mocha": "^6.2.2",
     "typescript": "^3.7.2"
-  }
+  },
+  "directories": {
+    "test": "test"
+  },
+  "dependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gliese1337/unshuffle.js.git"
+  },
+  "bugs": {
+    "url": "https://github.com/gliese1337/unshuffle.js/issues"
+  },
+  "homepage": "https://github.com/gliese1337/unshuffle.js#readme"
 }
